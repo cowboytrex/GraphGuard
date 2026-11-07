@@ -32,21 +32,40 @@ public class TransactionDataLoader {
                 }
 
                 try {
+                    int step = Integer.parseInt(columns[0]);
+                    String type = columns[1];
+
                     String transactionId = "TX" + rowNumber;
                     String sender = columns[3];
                     String receiver = columns[6];
+
                     double amount = Double.parseDouble(columns[2]);
+                    double oldBalance = Double.parseDouble(columns[4]);
+                    double newBalance = Double.parseDouble(columns[5]);
 
-                    if (!Double.isFinite(amount) || amount < 0) {
-                        continue;
-                    }
+                    boolean isFraud = Integer.parseInt(columns[9]) == 1;
 
-                    transactions.add(new Transaction(
-                            transactionId,
-                            sender,
-                            receiver,
-                            amount
-                    ));
+                    if (!Double.isFinite(amount) || amount < 0
+                        || !Double.isFinite(oldBalance)
+                        || !Double.isFinite(newBalance)
+                        || oldBalance < 0
+                        || newBalance < 0) {
+                    continue;
+                }   
+
+                    Transaction transaction = new Transaction(
+                        transactionId,
+                        sender,
+                        receiver,
+                        amount,
+                        isFraud,
+                        type,
+                        oldBalance,
+                        newBalance,
+                        step
+                    );
+
+                    transactions.add(transaction);
 
                 } catch (NumberFormatException e) {
                     System.out.println(

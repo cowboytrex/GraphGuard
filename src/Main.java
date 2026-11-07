@@ -11,20 +11,12 @@ public class Main {
 
         try {
             List<Transaction> transactions =
-                    loader.loadTransactions("data/transactions.csv", 100);
+                    loader.loadTransactions("data/transactions.csv", 1000000);
 
             System.out.println("Loaded: " + transactions.size());
 
-            for (Transaction transaction : transactions) {
-
-                String risk = detector.evaluateTransaction(transaction);
-
-                System.out.println(
-                    transaction.getTransactionId()
-                    + " | Amount: " + transaction.getAmount()
-                    + " | Risk: " + risk
-                );
-            }
+            FraudEvaluator evaluator = new FraudEvaluator();
+            evaluator.evaluate(transactions, detector);
 
         } catch (IOException e) {
             System.out.println("Error: " + e.getMessage());
