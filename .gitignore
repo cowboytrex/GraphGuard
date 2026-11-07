@@ -25,3 +25,8 @@ replay_pid*
 
 data/
 *.class
+
+target/
+
+# Large transaction dataset
+data/transactions.csv
