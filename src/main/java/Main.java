@@ -8,18 +8,39 @@ public class Main {
 
         TransactionDataLoader loader = new TransactionDataLoader();
         FraudDetectionService detector = new FraudDetectionService();
+        FraudEvaluator evaluator = new FraudEvaluator();
+
+        String filePath = "data/transactions.csv";
+
+        // Chronological held-out evaluation
+        int testStartStep = 501;
+        int testEndStep = 743;
 
         try {
-            List<Transaction> transactions =
-                    loader.loadTransactions("data/transactions.csv", 1000000);
+            System.out.println("=== GraphGuard Evaluation ===");
+            System.out.println(
+                    "Held-out period: steps "
+                    + testStartStep + "-" + testEndStep
+            );
 
-            System.out.println("Loaded: " + transactions.size());
+            List<Transaction> testTransactions =
+                    loader.loadTransactionsByStep(
+                            filePath,
+                            testStartStep,
+                            testEndStep
+                    );
 
-            FraudEvaluator evaluator = new FraudEvaluator();
-            evaluator.evaluate(transactions, detector);
+            System.out.println(
+                    "Loaded test transactions: "
+                    + testTransactions.size()
+            );
+
+            evaluator.evaluate(testTransactions, detector);
 
         } catch (IOException e) {
-            System.out.println("Error: " + e.getMessage());
+            System.err.println(
+                    "Error loading transactions: " + e.getMessage()
+            );
         }
     }
 }
