@@ -1,16 +1,25 @@
+
+import java.io.IOException;
+import java.util.List;
+
 public class Main {
 
     public static void main(String[] args) {
 
-        Transaction tx1 = new Transaction(
-            "TX001", "Alice", "Bob", 15000
-        );
-
+        TransactionDataLoader loader = new TransactionDataLoader();
         FraudDetectionService detector = new FraudDetectionService();
 
-        String result = detector.evaluateTransaction(tx1);
+        try {
+            List<Transaction> transactions =
+                    loader.loadTransactions("data/transactions.csv", 1000000);
 
-        System.out.println("Transaction: " + tx1.getTransactionId());
-        System.out.println("Risk Level: " + result);
+            System.out.println("Loaded: " + transactions.size());
+
+            FraudEvaluator evaluator = new FraudEvaluator();
+            evaluator.evaluate(transactions, detector);
+
+        } catch (IOException e) {
+            System.out.println("Error: " + e.getMessage());
+        }
     }
 }
