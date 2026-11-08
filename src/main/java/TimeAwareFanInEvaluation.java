@@ -46,8 +46,15 @@ public class TimeAwareFanInEvaluation {
                     if (step < 1) {
                         continue;
                     }
+                    
+                    String transactionType = columns[1];
+
+                    if (!transactionType.equals("TRANSFER")) {
+                        continue;
+                    }
 
                     int fraud = Integer.parseInt(columns[9]);
+
 
                     if (fraud != 0 && fraud != 1) {
                         continue;
