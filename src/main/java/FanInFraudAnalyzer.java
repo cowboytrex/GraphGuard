@@ -139,4 +139,5 @@ public class FanInFraudAnalyzer {
         System.out.println("Fraud cases: " + fraud);
         System.out.printf("Fraud rate: %.4f%%%n", fraudRate);
     }
+
 }
