@@ -130,17 +130,17 @@ public class TransactionDataLoader {
                         continue;
                     }
 
-                    Transaction transaction = new Transaction(
-                            "TX" + rowNumber,
-                            sender,
-                            receiver,
-                            amount,
-                            fraudLabel == 1,
-                            type,
-                            oldBalance,
-                            newBalance,
-                            step
-                    );
+                Transaction transaction = new Transaction(
+                        "TX" + rowNumber,
+                        sender,
+                        receiver,
+                        amount,
+                        fraudLabel == 1,
+                        type,
+                        oldBalance,
+                        newBalance,
+                        step
+                );
 
                     transactions.add(transaction);
 
