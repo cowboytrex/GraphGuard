@@ -48,4 +48,56 @@ public class GraphFraudDetectionService {
 
         return intermediaries;
     }
+
+    
+    public Set<String> detectHighValueForwarding(
+            List<Transaction> transactions) {
+
+        List<Transaction> sorted = new ArrayList<>(transactions);
+        sorted.sort(Comparator.comparingInt(Transaction::getStep));
+
+        Map<String, List<Transaction>> incoming = new HashMap<>();
+        Set<String> flaggedAccounts = new LinkedHashSet<>();
+
+        for (Transaction current : sorted) {
+
+            if (!"TRANSFER".equals(current.getType())
+                    || current.getAmount() <= 0) {
+                continue;
+            }
+
+            String sender = current.getSender();
+
+            List<Transaction> previousIncoming =
+                    incoming.getOrDefault(sender, List.of());
+
+            for (Transaction previous : previousIncoming) {
+
+                int stepDifference =
+                        current.getStep() - previous.getStep();
+
+                if (stepDifference <= 0 || stepDifference > 3) {
+                    continue;
+                }
+
+                double ratio =
+                        current.getAmount() / previous.getAmount();
+
+                if (ratio >= 0.80 && ratio <= 1.00
+                        && !previous.getSender().equals(current.getReceiver())) {
+
+                    flaggedAccounts.add(sender);
+                    break;
+                }
+            }
+
+            incoming.computeIfAbsent(
+                    current.getReceiver(),
+                    key -> new ArrayList<>()
+            ).add(current);
+        }
+
+        return flaggedAccounts;
+    }
+
 }
