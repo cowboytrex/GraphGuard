@@ -115,6 +115,26 @@ public class InvestigationReport {
         return count;
     }
 
+    
+    public List<Transaction> getHistoricalTransactions(
+            List<Transaction> transactions) {
+
+        List<Transaction> history = new ArrayList<>();
+
+        for (Transaction t : transactions) {
+            if (t.getStep() <= transaction.getStep()) {
+                history.add(t);
+            }
+        }
+
+        history.sort(
+                Comparator.comparingInt(Transaction::getStep)
+        );
+
+        return history;
+    }
+
+
 
     public void printReport() {
 
