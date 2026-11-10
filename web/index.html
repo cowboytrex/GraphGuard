@@ -1,0 +1,933 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+    <title>GraphGuard | Fraud Investigation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            margin: 0;
+            padding: 32px;
+        }
+
+
+        
+        .network-node,
+        .network-edge {
+            transition: opacity 0.2s ease;
+        }
+
+        .network-node.selected {
+            fill: #22c55e;
+            stroke: #bbf7d0;
+            stroke-width: 4;
+        }
+
+        .network-node.dimmed,
+        .network-edge.dimmed {
+            opacity: 0.12;
+        }
+
+        .network-edge.highlighted {
+            stroke: #22c55e;
+            stroke-width: 3;
+            opacity: 1;
+        }
+
+
+        h1 { margin-bottom: 8px; }
+
+        .subtitle {
+            color: #94a3b8;
+            margin-bottom: 24px;
+        }
+
+        button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 12px 18px;
+            margin-right: 10px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        
+        .transaction-incoming {
+            color: #4ade80;
+        }
+
+        .transaction-outgoing {
+            color: #fb7185;
+        }
+
+        #accountTransactions {
+            max-height: 300px;
+            overflow-y: auto;
+            padding-right: 12px;
+        }
+
+        
+        tbody tr {
+            cursor: pointer;
+        }
+
+        tbody tr:hover {
+            background: #334155;
+        }
+
+        .details {
+            margin-top: 24px;
+            padding: 24px;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+        }
+
+        .details h2 {
+            margin-top: 0;
+        }
+        
+    .network-node {
+        cursor: pointer;
+    }
+
+    .network-node:hover {
+        fill: #38bdf8;
+        stroke: #ffffff;
+        stroke-width: 3;
+    }
+
+    #accountTransactions {
+        padding-left: 20px;
+    }
+
+    #accountTransactions li {
+        margin-bottom: 8px;
+    }
+
+        
+        .network-container {
+            margin-top: 16px;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+
+                
+        #transactionNetwork {
+            display: block;
+            width: 100%;
+            min-width: 500px;
+            height: 650px;
+        }
+
+
+        .network-node {
+            fill: #2563eb;
+            stroke: #93c5fd;
+            stroke-width: 2;
+        }
+
+        .network-edge {
+            stroke: #f59e0b;
+            stroke-width: 2;
+            fill: none;
+        }
+
+        .network-label {
+            fill: #e2e8f0;
+            font-size: 12px;
+            text-anchor: middle;
+        }
+
+
+        button:hover { background: #1d4ed8; }
+
+
+                
+        .transaction-search {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+            margin: 20px 0;
+        }
+
+        .transaction-search input {
+            flex: 1;
+            min-width: 220px;
+            padding: 12px;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            color: white;
+        }
+
+        .transaction-search button {
+            padding: 12px 20px;
+            cursor: pointer;
+        }
+
+        #searchMessage {
+            width: 100%;
+            margin: 0;
+            color: #94a3b8;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 24px;
+            background: #1e293b;
+        }
+
+        th, td {
+            padding: 14px;
+            text-align: left;
+            border-bottom: 1px solid #334155;
+        }
+
+        th { color: #94a3b8; }
+
+        .high { color: #f87171; font-weight: bold; }
+        .medium { color: #fbbf24; font-weight: bold; }
+        .low { color: #4ade80; font-weight: bold; }
+
+        #status { margin-top: 16px; color: #94a3b8; }
+    </style>
+</head>
+<body>
+    <h1>GraphGuard</h1>
+    <p class="subtitle">Financial Fraud Investigation Dashboard</p>
+
+    <button onclick="loadTransactions(false)">
+        All Transactions
+    </button>
+
+    <button onclick="loadTransactions(true)">
+        High Risk Only
+    </button>
+
+    
+    <div class="transaction-search">
+        <input
+            type="text"
+            id="transactionSearchInput"
+            placeholder="Enter transaction ID (e.g. TX9262)"
+        >
+
+        <button id="searchTransactionButton">
+            Investigate
+        </button>
+
+        <p id="searchMessage"></p>
+    </div>
+
+
+    <p id="status" role="status">Loading...</p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Transaction ID</th>
+                <th>Type</th>
+                <th>Amount</th>
+                <th>Risk Score</th>
+                <th>Risk Level</th>
+            </tr>
+        </thead>
+        <tbody id="transactionRows"></tbody>
+    </table>
+
+    
+    <section id="transactionDetails" class="details" hidden>
+        <h2>Transaction Investigation</h2>
+
+        <p><strong>Transaction:</strong> <span id="detailId"></span></p>
+        <p><strong>Sender:</strong> <span id="detailSender"></span></p>
+        <p><strong>Receiver:</strong> <span id="detailReceiver"></span></p>
+        <p><strong>Amount:</strong> <span id="detailAmount"></span></p>
+        <p><strong>Risk Score:</strong> <span id="detailRiskScore"></span></p>
+        <p><strong>Risk Level:</strong> <span id="detailRiskLevel"></span></p>
+
+        
+        <h3>Risk Explanations</h3>
+        <ul id="riskExplanations"></ul>
+
+        <h3>Graph Context</h3>
+        <p>
+            Sender outgoing transactions:
+            <strong id="senderOutgoingCount"></strong>
+        </p>
+        <p>
+            Receiver incoming transactions:
+            <strong id="receiverIncomingCount"></strong>
+        </p>
+
+        <p id="investigationStatus" role="status"></p>
+        
+        <h3>Transaction Network</h3>
+
+        <button id="resetNetworkButton" type="button">
+            Reset Highlight
+        </button>
+
+        <div class="network-container">
+            <svg
+                id="transactionNetwork"
+                viewBox="0 0 700 300"
+                role="img"
+                aria-label="Transaction network visualization">
+            </svg>
+        </div>
+
+        
+        <div id="accountDetails" class="details" hidden>
+            <h3>Selected Account</h3>
+            <p><strong>Account ID:</strong> <span id="selectedAccountId"></span></p>
+            <p><strong>Connected transactions:</strong> <span id="connectedCount"></span></p>
+
+
+
+
+            
+            <p>
+                <strong>Incoming transactions:</strong>
+                <span id="accountIncomingCount"></span>
+            </p>
+
+            <p>
+                <strong>Outgoing transactions:</strong>
+                <span id="accountOutgoingCount"></span>
+            </p>
+
+            <p>
+                <strong>Total received:</strong>
+                $<span id="accountTotalReceived"></span>
+            </p>
+
+            <p>
+                <strong>Total sent:</strong>
+                $<span id="accountTotalSent"></span>
+            </p>
+
+
+            <p>
+                <strong>Flow classification:</strong>
+                <span id="accountFlowClassification"></span>
+            </p>
+
+
+            
+            <p>
+                <strong>Net flow:</strong>
+                <span id="accountNetFlow"></span>
+            </p>
+
+            <p>
+                <strong>Unique counterparties:</strong>
+                <span id="accountCounterparties"></span>
+            </p>
+
+            <ul id="accountTransactions"></ul>
+        </div>
+
+
+    </section>
+
+
+
+    <script>
+        let investigationRequestId = 0;
+
+
+        function showAccountDetails(account, edges) {
+
+            const details = document.getElementById("accountDetails");
+            const transactionList = document.getElementById("accountTransactions");
+
+            const connected = edges.filter(edge =>
+                edge.source === account || edge.target === account
+            );
+
+
+            const incoming = connected.filter(edge =>
+                edge.target === account
+            );
+
+            const outgoing = connected.filter(edge =>
+                edge.source === account
+            );
+
+            const totalReceived = incoming.reduce(
+                (sum, edge) => sum + Number(edge.amount), 0
+            );
+
+            const totalSent = outgoing.reduce(
+                (sum, edge) => sum + Number(edge.amount), 0
+            );
+                        
+                        
+            // Calculate net money movement.
+            const netFlow = totalReceived - totalSent;
+
+            // Count distinct accounts connected to this account.
+            const counterparties = new Set();
+
+
+
+                        
+            let flowClassification;
+
+            if (incoming.length > 0 && outgoing.length === 0) {
+                flowClassification = "Receiver only";
+            } else if (outgoing.length > 0 && incoming.length === 0) {
+                flowClassification = "Sender only";
+            } else if (incoming.length > 0 && outgoing.length > 0) {
+                flowClassification = "Intermediary (receives and sends)";
+            } else {
+                flowClassification = "No recorded activity";
+            }
+
+            document.getElementById("accountFlowClassification").textContent =
+                flowClassification;
+
+            for (const edge of connected) {
+                if (edge.source !== account) {
+                    counterparties.add(edge.source);
+                }
+
+                if (edge.target !== account) {
+                    counterparties.add(edge.target);
+                }
+            }
+
+            const netFlowElement =
+                document.getElementById("accountNetFlow");
+
+            netFlowElement.textContent =
+                (netFlow >= 0 ? "+" : "-") +
+                "$" + Math.abs(netFlow).toLocaleString("en-CA", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+
+            netFlowElement.classList.toggle(
+                "transaction-incoming",
+                netFlow > 0
+            );
+
+            netFlowElement.classList.toggle(
+                "transaction-outgoing",
+                netFlow < 0
+            );
+
+            document.getElementById("accountCounterparties").textContent =
+                counterparties.size;
+
+            document.getElementById("accountIncomingCount").textContent =
+                incoming.length;
+
+            document.getElementById("accountOutgoingCount").textContent =
+                outgoing.length;
+
+            document.getElementById("accountTotalReceived").textContent =
+                totalReceived.toLocaleString("en-CA", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+
+            document.getElementById("accountTotalSent").textContent =
+                totalSent.toLocaleString("en-CA", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+
+
+
+
+            document.getElementById("selectedAccountId").textContent = account;
+            document.getElementById("connectedCount").textContent = connected.length;
+
+            transactionList.replaceChildren();
+
+
+            for (const edge of connected) {
+                const item = document.createElement("li");
+
+                const isIncoming = edge.target === account;
+                const direction = isIncoming ? "↓ RECEIVED" : "↑ SENT";
+
+                item.classList.add(
+                    isIncoming
+                        ? "transaction-incoming"
+                        : "transaction-outgoing"
+                );
+
+                item.textContent =
+                    `${direction} | ${edge.id} | ` +
+                    `${edge.source} → ${edge.target} | ` +
+                    `$${Number(edge.amount).toLocaleString("en-CA", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    })} | Step ${edge.step}`;
+
+                transactionList.appendChild(item);
+            }
+
+
+            details.hidden = false;
+        }
+
+        
+        function highlightAccount(account) {
+            const svg = document.getElementById("transactionNetwork");
+
+            const connectedAccounts = new Set([account]);
+
+            svg.querySelectorAll(".network-edge").forEach(line => {
+                const source = line.dataset.source;
+                const target = line.dataset.target;
+
+                const connected =
+                    source === account || target === account;
+
+                line.classList.toggle("highlighted", connected);
+                line.classList.toggle("dimmed", !connected);
+
+                if (connected) {
+                    connectedAccounts.add(source);
+                    connectedAccounts.add(target);
+                }
+            });
+
+            svg.querySelectorAll(".network-node").forEach(circle => {
+                const nodeAccount = circle.dataset.account;
+
+                circle.classList.toggle(
+                    "selected",
+                    nodeAccount === account
+                );
+
+                circle.classList.toggle(
+                    "dimmed",
+                    !connectedAccounts.has(nodeAccount)
+                );
+            });
+        }
+
+                
+        function resetNetworkHighlight() {
+            const svg = document.getElementById("transactionNetwork");
+
+            svg.querySelectorAll(".network-node").forEach(node => {
+                node.classList.remove("selected", "dimmed");
+            });
+
+            svg.querySelectorAll(".network-edge").forEach(edge => {
+                edge.classList.remove("highlighted", "dimmed");
+            });
+
+            document.getElementById("accountDetails").hidden = true;
+        }
+
+
+
+        function renderTransactionNetwork(edges) {
+
+            const svg = document.getElementById("transactionNetwork");
+            const namespace = "http://www.w3.org/2000/svg";
+
+            svg.replaceChildren();
+
+            if (!edges || edges.length === 0) {
+                return;
+            }
+
+            const accounts = [...new Set(
+                edges.flatMap(edge => [edge.source, edge.target])
+            )];
+
+            const positions = new Map();
+            accounts.forEach((account, index) => {
+                const angle = (2 * Math.PI * index) / accounts.length;
+
+                positions.set(account, {
+                    x: 350 + 110 * Math.cos(angle),
+                    y: 150 + 95 * Math.sin(angle)
+                });
+            });
+
+            const connectionCounts = new Map();
+
+            for (const edge of edges) {
+                connectionCounts.set(
+                    edge.source,
+                    (connectionCounts.get(edge.source) || 0) + 1
+                );
+
+                connectionCounts.set(
+                    edge.target,
+                    (connectionCounts.get(edge.target) || 0) + 1
+                );
+            }
+
+            // Choose the account with the most transaction connections.
+            const hub = [...connectionCounts.entries()]
+                .sort((a, b) => b[1] - a[1])[0][0];
+
+            const outerAccounts = accounts.filter(
+                account => account !== hub
+            );
+
+            // Increase the canvas size for larger networks.
+            const centerX = 450;
+            const centerY = 450;
+            const radius = 330;
+
+            svg.setAttribute("viewBox", "0 0 900 900");
+
+            positions.set(hub, {
+                x: centerX,
+                y: centerY
+            });
+
+            outerAccounts.forEach((account, index) => {
+                const angle =
+                    (2 * Math.PI * index) / outerAccounts.length;
+
+                positions.set(account, {
+                    x: centerX + radius * Math.cos(angle),
+                    y: centerY + radius * Math.sin(angle)
+                });
+            });
+
+
+            // Arrow marker definition.
+            const defs = document.createElementNS(namespace, "defs");
+            const marker = document.createElementNS(namespace, "marker");
+
+            marker.setAttribute("id", "networkArrow");
+            marker.setAttribute("markerWidth", "10");
+            marker.setAttribute("markerHeight", "10");
+            marker.setAttribute("refX", "9");
+            marker.setAttribute("refY", "3");
+            marker.setAttribute("orient", "auto");
+            marker.setAttribute("markerUnits", "strokeWidth");
+
+            const arrow = document.createElementNS(namespace, "path");
+            arrow.setAttribute("d", "M0,0 L0,6 L9,3 z");
+            arrow.setAttribute("fill", "#f59e0b");
+
+            marker.appendChild(arrow);
+            defs.appendChild(marker);
+            svg.appendChild(defs);
+
+            // Draw directed transaction edges.
+            for (const edge of edges) {
+
+                const source = positions.get(edge.source);
+                const target = positions.get(edge.target);
+
+                const line = document.createElementNS(namespace, "line");
+
+                line.dataset.source = edge.source;
+                line.dataset.target = edge.target;
+
+
+            const dx = target.x - source.x;
+            const dy = target.y - source.y;
+            const distance = Math.hypot(dx, dy);
+
+            if (distance === 0) {
+                continue;
+            }
+
+            const ux = dx / distance;
+            const uy = dy / distance;
+
+            const nodeRadius = 18;
+            const arrowPadding = 6;
+
+            line.setAttribute("x1", source.x + ux * nodeRadius);
+            line.setAttribute("y1", source.y + uy * nodeRadius);
+
+            line.setAttribute(
+                "x2",
+                target.x - ux * (nodeRadius + arrowPadding)
+            );
+
+            line.setAttribute(
+                "y2",
+                target.y - uy * (nodeRadius + arrowPadding)
+            );
+
+                line.setAttribute("class", "network-edge");
+                line.setAttribute("marker-end", "url(#networkArrow)");
+
+                const title = document.createElementNS(namespace, "title");
+                title.textContent =
+                    `${edge.id}: ${edge.amount} at step ${edge.step}`;
+
+                line.appendChild(title);
+                svg.appendChild(line);
+            }
+
+            // Draw account nodes.
+            for (const account of accounts) {
+
+                const position = positions.get(account);
+
+                const circle = document.createElementNS(namespace, "circle");
+                circle.dataset.account = account;
+                circle.setAttribute("cx", position.x);
+                circle.setAttribute("cy", position.y);
+                circle.setAttribute("r", "18");
+                circle.setAttribute("class", "network-node");
+
+                const title = document.createElementNS(namespace, "title");
+                title.textContent = account;
+
+                circle.appendChild(title);
+
+                circle.addEventListener("click", () => {
+                    showAccountDetails(account, edges);
+                    highlightAccount(account);
+                });
+
+                svg.appendChild(circle);
+
+
+                const label = document.createElementNS(namespace, "text");
+                label.setAttribute("x", position.x);
+                label.setAttribute("y", position.y + 36);
+                label.setAttribute("class", "network-label");
+                label.textContent = account;
+
+                if (accounts.length <= 15 || account === hub) {
+                    svg.appendChild(label);
+                }            }
+        }
+
+                
+        async function investigateTransaction(id, transaction = null) {
+            const requestId = ++investigationRequestId;
+
+            document.getElementById("transactionNetwork").replaceChildren();
+            document.getElementById("accountDetails").hidden = true;
+
+            const details = document.getElementById("transactionDetails");
+            const investigationStatus =
+                document.getElementById("investigationStatus");
+            const explanationsList =
+                document.getElementById("riskExplanations");
+
+            details.hidden = false;
+            investigationStatus.textContent = "Loading investigation...";
+            explanationsList.replaceChildren();
+
+            document.getElementById("detailId").textContent = id;
+            document.getElementById("detailSender").textContent =
+                transaction?.sender ?? "—";
+            document.getElementById("detailReceiver").textContent =
+                transaction?.receiver ?? "—";
+
+            document.getElementById("detailAmount").textContent =
+                transaction
+                    ? Number(transaction.amount).toLocaleString("en-CA", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    })
+                    : "—";
+            document.getElementById("detailRiskScore").textContent =
+                transaction?.riskScore ?? "—";
+            document.getElementById("detailRiskLevel").textContent =
+                transaction?.riskLevel ?? "—";
+
+            document.getElementById("senderOutgoingCount").textContent = "—";
+            document.getElementById("receiverIncomingCount").textContent = "—";
+
+            try {
+                const response = await fetch(
+                    "/api/investigation?id=" + encodeURIComponent(id)
+                );
+
+                if (!response.ok) {
+                    throw new Error("HTTP " + response.status);
+                }
+
+                const investigation = await response.json();
+
+                if (requestId !== investigationRequestId) {
+                    return;
+                }
+
+                document.getElementById("detailAmount").textContent =
+                    Number(investigation.amount).toLocaleString("en-CA", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+
+                document.getElementById("detailId").textContent =
+                    investigation.id;
+
+                document.getElementById("detailSender").textContent =
+                    investigation.sender;
+
+                document.getElementById("detailReceiver").textContent =
+                    investigation.receiver;
+
+                document.getElementById("detailRiskScore").textContent =
+                    investigation.riskScore;
+
+                document.getElementById("detailRiskLevel").textContent =
+                    investigation.riskLevel;
+
+                for (const explanation of investigation.explanations) {
+                    const item = document.createElement("li");
+                    item.textContent = explanation;
+                    explanationsList.appendChild(item);
+                }
+
+                document.getElementById("senderOutgoingCount").textContent =
+                    investigation.senderOutgoingCount;
+
+                document.getElementById("receiverIncomingCount").textContent =
+                    investigation.receiverIncomingCount;
+
+                renderTransactionNetwork(investigation.edges);
+
+                investigationStatus.textContent = "";
+
+            } catch (error) {
+                if (requestId !== investigationRequestId) {
+                    return;
+                }
+
+                investigationStatus.textContent =
+                    "Unable to load investigation: " + error.message;
+            }
+        }
+
+
+
+
+        async function loadTransactions(highRiskOnly) {
+            const status = document.getElementById("status");
+            const tbody = document.getElementById("transactionRows");
+
+            status.textContent = "Loading transactions...";
+            tbody.replaceChildren();
+
+            const url = highRiskOnly
+                ? "/api/transactions?risk=high"
+                : "/api/transactions";
+
+            try {
+                const response = await fetch(url);
+
+                if (!response.ok) {
+                    throw new Error("HTTP " + response.status);
+                }
+
+                const transactions = await response.json();
+
+                for (const transaction of transactions) {
+                    const row = document.createElement("tr");
+
+                    const values = [
+                        transaction.id,
+                        transaction.type,
+                        Number(transaction.amount).toLocaleString(
+                            "en-CA",
+                            {style: "currency", currency: "CAD"}
+                        ),
+                        transaction.riskScore,
+                        transaction.riskLevel
+                    ];
+
+                    values.forEach((value, index) => {
+                        const cell = document.createElement("td");
+                        cell.textContent = value;
+
+                        if (index === 4) {
+                            cell.className =
+                                transaction.riskLevel === "HIGH RISK"
+                                    ? "high"
+                                    : transaction.riskLevel === "MEDIUM RISK"
+                                        ? "medium"
+                                        : "low";
+                        }
+
+                        row.appendChild(cell);
+                    });
+                    
+                    
+
+                row.addEventListener("click", () => {
+                    investigateTransaction(transaction.id, transaction);
+                });
+
+
+
+
+
+                    tbody.appendChild(row);
+                }
+
+                status.textContent =
+                    "Showing " + transactions.length + " transactions";
+
+            } catch (error) {
+                status.textContent =
+                    "Unable to load transactions: " + error.message;
+            }
+        }
+
+        loadTransactions(false);
+
+        
+        const searchInput =
+            document.getElementById("transactionSearchInput");
+
+        const searchButton =
+            document.getElementById("searchTransactionButton");
+
+        const searchMessage =
+            document.getElementById("searchMessage");
+
+        async function searchTransaction() {
+            const id = searchInput.value.trim().toUpperCase();
+
+            if (!/^TX\d+$/.test(id)) {
+                searchMessage.textContent =
+                    "Please enter a valid transaction ID, such as TX9262.";
+                return;
+            }
+
+            searchMessage.textContent = "";
+            await investigateTransaction(id);
+        }
+
+        searchButton.addEventListener("click", searchTransaction);
+
+        searchInput.addEventListener("keydown", event => {
+            if (event.key === "Enter") {
+                searchTransaction();
+            }
+        });
+
+                
+        document.getElementById("resetNetworkButton")
+            .addEventListener("click", resetNetworkHighlight);
+
+    </script>
+</body>
+</html>
