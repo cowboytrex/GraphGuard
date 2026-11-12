@@ -122,4 +122,60 @@ false_positive_rate = fp / (fp + tn)
 
 print(f"False positive rate: {false_positive_rate:.6%}")
 
+
+# STEP 283 - FRAUD PROBABILITY THRESHOLD ANALYSIS
+
+print("\nFRAUD THRESHOLD COMPARISON")
+print("-" * 65)
+
+# Probability that each transaction is fraudulent
+fraud_probabilities = model.predict_proba(X_val)[:, 1]
+
+thresholds = [0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90]
+
+print(
+    f"{'Threshold':<12}"
+    f"{'Precision':<12}"
+    f"{'Recall':<12}"
+    f"{'F1':<10}"
+    f"{'FP':<10}"
+    f"{'FN':<10}"
+)
+
+for threshold in thresholds:
+
+    # Classify transactions using this threshold
+    threshold_predictions = (
+        fraud_probabilities >= threshold
+    ).astype(int)
+
+    precision = precision_score(
+        y_val, threshold_predictions, zero_division=0
+    )
+
+    recall = recall_score(
+        y_val, threshold_predictions, zero_division=0
+    )
+
+    f1 = f1_score(
+        y_val, threshold_predictions, zero_division=0
+    )
+
+    tn, fp, fn, tp = confusion_matrix(
+        y_val,
+        threshold_predictions,
+        labels=[0, 1],
+    ).ravel()
+
+    print(
+        f"{threshold:<12.2f}"
+        f"{precision:<12.4f}"
+        f"{recall:<12.4f}"
+        f"{f1:<10.4f}"
+        f"{fp:<10}"
+        f"{fn:<10}"
+    )
+
+
+
 print("\nBaseline experiment complete!")
