@@ -138,3 +138,54 @@ assert final_train_df["step"].max() < validation_df["step"].min()
 assert validation_df["step"].max() < test_df["step"].min()
 
 print("\nThree-way chronological split verified!")
+
+
+# Prepare features separately for each chronological dataset
+
+def prepare_features(subset, feature_columns):
+    X = subset[feature_columns].copy()
+
+    # Convert transaction types to numeric features
+    X = pd.get_dummies(X, columns=["type"], dtype="int8")
+
+    y = subset["isFraud"].copy()
+
+    return X, y
+
+
+# Use the same transaction-level features
+feature_columns = [
+    "type",
+    "amount",
+    "oldbalanceOrg",
+    "newbalanceOrig",
+    "oldbalanceDest",
+    "newbalanceDest",
+]
+
+X_train, y_train = prepare_features(
+    final_train_df, feature_columns
+)
+
+X_val, y_val = prepare_features(
+    validation_df, feature_columns
+)
+
+X_test, y_test = prepare_features(
+    test_df, feature_columns
+)
+
+# Align feature columns to the training dataset
+X_val = X_val.reindex(columns=X_train.columns, fill_value=0)
+X_test = X_test.reindex(columns=X_train.columns, fill_value=0)
+
+assert list(X_train.columns) == list(X_val.columns)
+assert list(X_train.columns) == list(X_test.columns)
+
+print("\nFINAL ML DATASETS")
+print("-" * 45)
+print("Training:", X_train.shape)
+print("Validation:", X_val.shape)
+print("Testing:", X_test.shape)
+
+print("\nFinal ML feature preparation complete!")
