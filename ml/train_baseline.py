@@ -1,6 +1,6 @@
-
 from pathlib import Path
-
+from sklearn.inspection import permutation_importance
+from sklearn.metrics import make_scorer
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import (
@@ -197,6 +197,61 @@ print(feature_importance.to_string(index=False))
 print("\nTop 3 most important features:")
 print(feature_importance.head(3).to_string(index=False))
 
+
+# STEP 285 - PERMUTATION FEATURE IMPORTANCE
+
+print("\nPERMUTATION FEATURE IMPORTANCE")
+print("-" * 45)
+
+# Use a reproducible subset of validation transactions.
+# Keep all fraud cases to make the evaluation more informative.
+val_fraud_indices = y_val[y_val == 1].index
+val_legit_indices = (
+    y_val[y_val == 0]
+    .sample(n=20_000, random_state=42)
+    .index
+)
+
+sample_indices = val_fraud_indices.append(val_legit_indices)
+
+X_val_sample = X_val.loc[sample_indices]
+y_val_sample = y_val.loc[sample_indices]
+
+print("Validation sample size:", len(X_val_sample))
+print("Fraud cases:", int(y_val_sample.sum()))
+
+# Evaluate F1 using our selected threshold of 0.80
+def threshold_f1(estimator, X, y):
+    probabilities = estimator.predict_proba(X)[:, 1]
+    predictions = (probabilities >= 0.80).astype(int)
+    return f1_score(y, predictions, zero_division=0)
+
+# Measure the effect of shuffling each feature
+result = permutation_importance(
+    model,
+    X_val_sample,
+    y_val_sample,
+    scoring=threshold_f1,
+    n_repeats=3,
+    random_state=42,
+    n_jobs=1,
+)
+
+importance_df = pd.DataFrame({
+    "Feature": X_val_sample.columns,
+    "F1_Decrease": result.importances_mean,
+    "Std_Dev": result.importances_std,
+})
+
+importance_df = importance_df.sort_values(
+    by="F1_Decrease",
+    ascending=False,
+)
+
+print("\nPermutation importance results:")
+print(importance_df.to_string(index=False))
+
+print("\nPermutation analysis complete!")
 
 
 print("\nBaseline experiment complete!")
