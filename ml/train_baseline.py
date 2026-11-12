@@ -177,5 +177,26 @@ for threshold in thresholds:
     )
 
 
+# STEP 284 - RANDOM FOREST FEATURE IMPORTANCE
+
+print("\nFEATURE IMPORTANCE ANALYSIS")
+print("-" * 45)
+
+feature_importance = pd.DataFrame({
+    "Feature": X_train.columns,
+    "Importance": model.feature_importances_
+})
+
+feature_importance = feature_importance.sort_values(
+    by="Importance",
+    ascending=False
+)
+
+print(feature_importance.to_string(index=False))
+
+print("\nTop 3 most important features:")
+print(feature_importance.head(3).to_string(index=False))
+
+
 
 print("\nBaseline experiment complete!")
