@@ -26,6 +26,13 @@ replay_pid*
 data/
 *.class
 
+# Python virtual environment
+.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+
 target/
 
 # Large transaction dataset
