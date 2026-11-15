@@ -8,6 +8,8 @@ from sklearn.metrics import (
     precision_score,
     recall_score,
     f1_score,
+    precision_recall_curve,
+    average_precision_score,
 )
 
 from graph_features import calculate_prior_unique_senders
@@ -86,6 +88,84 @@ def evaluate_model(name, model, X_val, y_val):
         "f1": f1,
         "fp": fp,
         "fn": fn,
+    }
+
+
+def compare_thresholds(name, model, X_val, y_val):
+    probabilities = model.predict_proba(X_val)[:, 1]
+
+    print(f"\nTHRESHOLD ANALYSIS: {name}")
+    print("-" * 75)
+
+    print(
+        f"{'Threshold':<12}"
+        f"{'Precision':<12}"
+        f"{'Recall':<12}"
+        f"{'F1':<12}"
+        f"{'FP':<10}"
+        f"{'FN':<10}"
+    )
+
+    thresholds = [
+        0.30, 0.40, 0.50, 0.60,
+        0.65, 0.70, 0.75, 0.80,
+        0.85, 0.90, 0.95,
+    ]
+
+    best_f1 = -1.0
+    best_threshold = None
+
+    for threshold in thresholds:
+        predictions = (probabilities >= threshold).astype(int)
+
+        precision = precision_score(
+            y_val, predictions, zero_division=0
+        )
+        recall = recall_score(
+            y_val, predictions, zero_division=0
+        )
+        f1 = f1_score(
+            y_val, predictions, zero_division=0
+        )
+
+        tn, fp, fn, tp = confusion_matrix(
+            y_val, predictions, labels=[0, 1]
+        ).ravel()
+
+        print(
+            f"{threshold:<12.2f}"
+            f"{precision:<12.4f}"
+            f"{recall:<12.4f}"
+            f"{f1:<12.4f}"
+            f"{fp:<10}"
+            f"{fn:<10}"
+        )
+
+        if f1 > best_f1:
+            best_f1 = f1
+            best_threshold = threshold
+
+    average_precision = average_precision_score(
+        y_val, probabilities
+    )
+
+    # Calculate the full precision-recall curve.
+    precision_curve, recall_curve, curve_thresholds = (
+        precision_recall_curve(y_val, probabilities)
+    )
+
+    print(f"\nBest tested threshold: {best_threshold:.2f}")
+    print(f"Best tested F1: {best_f1:.4f}")
+    print(f"Average precision (AP): {average_precision:.4f}")
+    print(
+        "Precision-recall curve points:",
+        len(precision_curve),
+    )
+
+    return {
+        "best_threshold": best_threshold,
+        "best_f1": best_f1,
+        "average_precision": average_precision,
     }
 
 
@@ -184,6 +264,13 @@ def main():
         model.fit(X_train, y_train)
 
         results[name] = evaluate_model(
+            name,
+            model,
+            X_val,
+            y_val,
+        )
+
+        compare_thresholds(
             name,
             model,
             X_val,
