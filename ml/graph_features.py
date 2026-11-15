@@ -149,3 +149,81 @@ if __name__ == "__main__":
 
     assert nonconsecutive_result == [0, 1, 2]
     print("Nonconsecutive index test PASSED!")
+
+    
+def calculate_prior_incoming_amount(transactions, window=24):
+    """
+    Calculate the total amount received by each transaction's
+    sender during the previous `window` simulation steps.
+
+    Only TRANSFER and CASH_OUT transactions contribute to
+    incoming history.
+
+    Transactions from the same step do not contribute to
+    each other's features.
+
+    The input must be sorted by step in ascending order.
+    """
+    from collections import defaultdict, deque
+
+    if window < 0:
+        raise ValueError("window must be non-negative")
+
+    required = {"step", "type", "amount", "nameOrig", "nameDest"}
+    missing = required - set(transactions.columns)
+    if missing:
+        raise ValueError(f"Missing required columns: {sorted(missing)}")
+
+    history = defaultdict(deque)
+    totals = defaultdict(float)
+
+    features = [0.0] * len(transactions)
+    current_step = None
+    step_rows = []
+
+    def process_step(rows, step):
+        # Read previous history before adding any current-step transactions.
+        for position, tx_type, amount, sender, receiver in rows:
+            recent = history[sender]
+
+            while recent and recent[0][0] < step - window:
+                old_step, old_amount = recent.popleft()
+                totals[sender] -= old_amount
+
+            features[position] = max(0.0, totals[sender])
+
+        # Add incoming funds after all features for this step are calculated.
+        for position, tx_type, amount, sender, receiver in rows:
+            if tx_type in ("TRANSFER", "CASH_OUT"):
+                history[receiver].append((step, float(amount)))
+                totals[receiver] += float(amount)
+
+    previous_step = None
+
+    for position, row in enumerate(
+        transactions[
+            ["step", "type", "amount", "nameOrig", "nameDest"]
+        ].itertuples(index=False, name=None)
+    ):
+        step, tx_type, amount, sender, receiver = row
+
+        if previous_step is not None and step < previous_step:
+            raise ValueError("Transactions must be sorted by step")
+
+        if current_step is None:
+            current_step = step
+
+        if step != current_step:
+            process_step(step_rows, current_step)
+            step_rows = []
+            current_step = step
+
+        step_rows.append(
+            (position, tx_type, amount, sender, receiver)
+        )
+        previous_step = step
+
+    if step_rows:
+        process_step(step_rows, current_step)
+
+    return features
