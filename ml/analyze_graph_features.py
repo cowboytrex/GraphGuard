@@ -88,6 +88,65 @@ def analyze_graph_features():
         int((fraud["prior_unique_senders_24h"] >= 3).sum()),
     )
 
+    
+    # STEP 291 - FRAUD ANALYSIS BY TRANSACTION TYPE
+
+    print("\nFRAUD PATTERNS BY TRANSACTION TYPE")
+    print("-" * 55)
+
+    # PaySim labels fraud only in TRANSFER and CASH_OUT.
+    fraud_types = ["TRANSFER", "CASH_OUT"]
+
+    for tx_type in fraud_types:
+        subset = df[df["type"] == tx_type]
+
+        print(f"\nTRANSACTION TYPE: {tx_type}")
+        print("-" * 45)
+
+        print(f"Total transactions: {len(subset):,}")
+        print(f"Fraud cases: {int(subset['isFraud'].sum()):,}")
+
+        print("\nHistorical sender distribution:")
+
+        distribution = (
+            subset.groupby("isFraud")["prior_unique_senders_24h"]
+            .agg(["count", "mean", "median", "max"])
+        )
+
+        print(distribution)
+
+        print("\nFraud rate by sender group:")
+
+        summary = (
+            subset.groupby("sender_group", observed=True)["isFraud"]
+            .agg(
+                transactions="count",
+                fraud_cases="sum",
+                fraud_rate="mean",
+            )
+        )
+
+        summary["fraud_rate"] *= 100
+
+        print(summary)
+
+        fraud_subset = subset[subset["isFraud"] == 1]
+
+        zero_senders = (
+            fraud_subset["prior_unique_senders_24h"] == 0
+        ).sum()
+
+        print(
+            "\nFraud cases with zero historical senders:",
+            int(zero_senders),
+        )
+
+        print(
+            "Percentage of fraud with zero historical senders:",
+            f"{zero_senders / len(fraud_subset) * 100:.2f}%"
+        )
+
+
     elapsed = time.perf_counter() - start
 
     print(f"\nTotal analysis time: {elapsed:.2f} seconds")
