@@ -1,14 +1,13 @@
 
-from collections import defaultdict, deque
+from collections import Counter, defaultdict, deque
 
 
 def calculate_prior_unique_senders(transactions, window=24):
     """
     Count distinct historical senders to each receiver.
 
-    Transactions must be sorted by step.
-    Transactions within the same step are processed
-    together to avoid using same-step information.
+    Uses a sliding window and sender frequency counters.
+    Only transactions from earlier steps contribute.
     """
     required = {"step", "type", "nameOrig", "nameDest"}
     missing = required - set(transactions.columns)
@@ -23,32 +22,55 @@ def calculate_prior_unique_senders(transactions, window=24):
         raise ValueError("Transactions must be sorted by step")
 
     history = defaultdict(deque)
-    results = [0] * len(transactions)
+    sender_counts = defaultdict(Counter)
 
+    results = [0] * len(transactions)
     transfer_types = {"TRANSFER", "CASH_OUT"}
 
-    for step, group in transactions.groupby("step", sort=False):
-        # Calculate features using only previous steps.
-        for position in group.index:
-            receiver = transactions.at[position, "nameDest"]
+    rows = transactions[
+        ["step", "type", "nameOrig", "nameDest"]
+    ].itertuples(index=False, name=None)
+
+    current_step = None
+    step_rows = []
+
+    def process_step(step, batch):
+        # Calculate features before adding this step's transactions.
+        for position, tx_type, sender, receiver in batch:
             recent = history[receiver]
+            counts = sender_counts[receiver]
 
             while recent and recent[0][0] < step - window:
-                recent.popleft()
+                _, old_sender = recent.popleft()
+                counts[old_sender] -= 1
 
-            results[position] = len({
-                sender for _, sender in recent
-            })
+                if counts[old_sender] == 0:
+                    del counts[old_sender]
 
-        # Update history after every transaction in
-        # this step has received its feature value.
-        for position in group.index:
-            if transactions.at[position, "type"] in transfer_types:
-                receiver = transactions.at[position, "nameDest"]
-                sender = transactions.at[position, "nameOrig"]
+            results[position] = len(counts)
+
+        # Update history only after calculating all features.
+        for position, tx_type, sender, receiver in batch:
+            if tx_type in transfer_types:
                 history[receiver].append((step, sender))
+                sender_counts[receiver][sender] += 1
+
+    for position, (step, tx_type, sender, receiver) in enumerate(rows):
+        if current_step is None:
+            current_step = step
+
+        if step != current_step:
+            process_step(current_step, step_rows)
+            step_rows = []
+            current_step = step
+
+        step_rows.append((position, tx_type, sender, receiver))
+
+    if step_rows:
+        process_step(current_step, step_rows)
 
     return results
+
 
 
 if __name__ == "__main__":
@@ -107,3 +129,23 @@ if __name__ == "__main__":
 
     assert expiration_result == [0, 1, 0]
     print("24-step window expiration test PASSED!")
+
+
+    # Test 4: Nonconsecutive DataFrame indices.
+    nonconsecutive = pd.DataFrame([
+        {"step": 1, "type": "TRANSFER",
+         "nameOrig": "A", "nameDest": "X"},
+        {"step": 2, "type": "TRANSFER",
+         "nameOrig": "B", "nameDest": "X"},
+        {"step": 3, "type": "TRANSFER",
+         "nameOrig": "C", "nameDest": "X"},
+    ])
+
+    nonconsecutive.index = [10, 25, 100]
+
+    nonconsecutive_result = calculate_prior_unique_senders(
+        nonconsecutive
+    )
+
+    assert nonconsecutive_result == [0, 1, 2]
+    print("Nonconsecutive index test PASSED!")
